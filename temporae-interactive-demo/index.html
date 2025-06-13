@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Demo: Temporae</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Harmony -->
+    <!-- Application Structure Plan: The app is a single-page SPA with vertical scrolling and a fixed top navigation bar. This structure allows users to get an overview of the three products (Pulse+, Care, RDS) and explore each in detail. Each product section combines an introduction, an interactive chat simulation demonstrating the user flow, and an HR dashboard with data visualizations (charts and KPI cards). This structure was chosen because it transforms static report demos into interactive, tangible experiences, making it easier to understand the value of each tool and telling a coherent story of employee support, from light polling to deep assistance. -->
+    <!-- Visualization & Content Choices: Pulse+ Dashboard: Two Donut charts for 'Interaction Rate' and 'Positive Reactions' (Goal: show proportions, Library: Chart.js). Care Dashboard: Bar chart to compare 'Interactions', 'Breaks', and 'Referrals' (Goal: compare, Library: Chart.js). RDS Dashboard: Pie chart for '% Personal vs. Work Tasks' (Goal: show proportions, Library: Chart.js). Chat Simulations: HTML/CSS/JS to show conversation flows (Goal: organize/demonstrate process). This combination of data visualization and interactive simulation makes the abstract concepts of the report concrete and easy to understand for a potential client. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF6;
+            color: #3C3C3C;
+            line-height: 1.7;
+        }
+        main {
+            padding-bottom: 48px;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 320px;
+        }
+        @media (min-width: 640px) {
+            .chart-container {
+                height: 320px;
+                max-height: 350px;
+            }
+        }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 2px;
+            font-size: 1.1rem;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #C67E4C;
+            border-bottom-color: #C67E4C;
+            font-weight: 600;
+        }
+        .chat-bubble {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+            margin-bottom: 0.5rem;
+            font-size: 1.08rem;
+            box-shadow: 0 2px 8px 0 rgb(0 0 0 / 0.04);
+        }
+        .chat-bubble.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .kpi-card {
+            background-color: white;
+            border-radius: 0.95rem;
+            padding: 2rem 1.5rem 1.5rem 1.5rem;
+            text-align: center;
+            box-shadow: 0 6px 16px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-bottom: 0.5rem;
+        }
+        .kpi-card:hover {
+            transform: translateY(-7px) scale(1.03);
+            box-shadow: 0 12px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.08);
+        }
+        .btn-primary {
+            background-color: #E6A473;
+            color: white;
+            transition: background-color 0.3s, box-shadow 0.2s;
+            font-size: 1.08rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px 0 rgb(230 164 115 / 0.10);
+        }
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: #C67E4C;
+            box-shadow: 0 4px 16px 0 rgb(198 126 76 / 0.15);
+        }
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: #3C3C3C;
+            transition: background-color 0.3s, box-shadow 0.2s;
+            font-size: 1.05rem;
+            font-weight: 500;
+            box-shadow: 0 1px 4px 0 rgb(0 0 0 / 0.04);
+        }
+        .btn-secondary:hover, .btn-secondary:focus {
+            background-color: #e0e0e0;
+            box-shadow: 0 2px 8px 0 rgb(0 0 0 / 0.08);
+        }
+        /* Mejoras de simulación de chat */
+        #pulse-simulation, #care-simulation, #rds-simulation {
+            background: linear-gradient(135deg, #f8f6f2 60%, #f3e9df 100%);
+            border: 1px solid #f3e9df;
+            box-shadow: 0 6px 24px -4px rgb(230 164 115 / 0.08);
+        }
+        .chat-bubble {
+            min-width: 60px;
+            min-height: 36px;
+        }
+        .chat-bubble.bg-blue-100 {
+            background: linear-gradient(90deg, #e0e7ff 80%, #f0f4ff 100%);
+        }
+        .chat-bubble.bg-gray-200 {
+            background: linear-gradient(90deg, #f3f4f6 80%, #f8fafc 100%);
+        }
+        /* Mejoras de input RDS */
+        #rds-input {
+            font-size: 1.08rem;
+            padding: 0.7rem 1rem;
+            border-radius: 0.75rem 0 0 0.75rem;
+        }
+        #rds-send-btn {
+            border-radius: 0 0.75rem 0.75rem 0;
+        }
+        /* Mejoras de responsividad */
+        @media (max-width: 640px) {
+            .kpi-card {
+                padding: 1.2rem 0.8rem 1rem 0.8rem;
+                font-size: 0.98rem;
+            }
+            .chat-bubble {
+                font-size: 0.98rem;
+            }
+            .chart-container {
+                max-width: 98vw;
+            }
+        }
+        /* Botón flotante scroll to top */
+        #scrollTopBtn {
+            display: none;
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            z-index: 100;
+            background: #E6A473;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            box-shadow: 0 4px 16px 0 rgb(230 164 115 / 0.18);
+            font-size: 2rem;
+            cursor: pointer;
+            transition: background 0.3s, box-shadow 0.2s;
+        }
+        #scrollTopBtn:hover, #scrollTopBtn:focus {
+            background: #C67E4C;
+            box-shadow: 0 8px 24px 0 rgb(198 126 76 / 0.22);
+        }
+        /* Mejoras de accesibilidad */
+        .btn-primary:focus, .btn-secondary:focus, .nav-link:focus {
+            outline: 2px solid #C67E4C;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#hero" class="flex items-center">
+                <span style="color: #706AC7; font-size: 2rem; font-weight: bold; letter-spacing: 0.03em;">Temporae</span>
+            </a>
+            <div class="hidden md:flex items-center space-x-8">
+                <a href="#pulse" class="nav-link font-medium pb-1">Pulse+</a>
+                <a href="#care" class="nav-link font-medium pb-1">Care</a>
+                <a href="#rds" class="nav-link font-medium pb-1">RDS</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero" class="py-24 md:py-36 text-center bg-white">
+            <div class="container mx-auto px-6">
+                <h2 class="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight mb-4">Interactive Demo: Temporae</h2>
+                <p class="mt-4 text-lg md:text-2xl max-w-3xl mx-auto text-gray-600">The invisible network that cares for, supports, and lightens your team. Explore how our tools transform workplace climate with a single click.</p>
+            </div>
+        </section>
+
+        <section id="pulse" class="py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h3 class="text-3xl md:text-4xl font-bold">Pulse+</h3>
+                    <p class="mt-3 text-lg max-w-2xl mx-auto text-gray-600">Pulse+ is an emotional polling tool designed to generate daily connection quickly and frictionlessly. Through simple questions on platforms like Slack, WhatsApp, or email, it fosters an environment of recognition and openness, subtly but measurably improving workplace climate.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h4 class="text-xl font-semibold mb-4 text-center">Interaction Simulation</h4>
+                        <div id="pulse-simulation" class="bg-white p-6 rounded-xl shadow-lg h-[450px] flex flex-col">
+                            <div class="flex items-center mb-4">
+                                <div class="w-10 h-10 bg-gray-200 rounded-full mr-3 flex items-center justify-center font-bold text-gray-600">P+</div>
+                                <div>
+                                    <span class="font-bold">Pulse+</span>
+                                    <span class="text-sm text-gray-500">app</span>
+                                </div>
+                            </div>
+                            <div class="space-y-4 overflow-y-auto flex-grow pr-2">
+                                <div id="pulse-q-container"></div>
+                            </div>
+                            <div class="mt-4">
+                                <button id="start-pulse-sim" class="w-full btn-primary font-bold py-2 px-4 rounded-lg">Start Pulse+ Simulation</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xl font-semibold mb-4 text-center">HR Dashboard: Pulse+</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="kpi-card">
+                                <p class="text-gray-500 font-medium">Recognitions</p>
+                                <p class="text-4xl font-bold text-[#E6A473]">36</p>
+                                <p class="text-gray-500">this week</p>
+                            </div>
+                            <div class="kpi-card">
+                                <p class="text-gray-500 font-medium">Emotional Microclimate</p>
+                                <p class="text-4xl font-bold text-[#E6A473]">📈</p>
+                                <p class="text-gray-500">Stable, rising</p>
+                            </div>
+                            <div class="col-span-1 sm:col-span-2 chart-container">
+                                <canvas id="pulseChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <div class="w-full bg-white"><div class="container mx-auto"><hr class="border-gray-200"></div></div>
+
+        <section id="care" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h3 class="text-3xl md:text-4xl font-bold">Temporae Care</h3>
+                    <p class="mt-3 text-lg max-w-2xl mx-auto text-gray-600">Care is a proactive emotional support network, operated by a specialized AI. It listens, supports, and detects risks, escalating to real professionals only if necessary and notifying HR with total sensitivity. It is a preventive system that offers relief before problems escalate.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <h4 class="text-xl font-semibold mb-4 text-center">HR Dashboard: Care</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="kpi-card">
+                                <p class="text-gray-500 font-medium">Interactions</p>
+                                <p class="text-4xl font-bold text-[#E6A473]">74</p>
+                                <p class="text-gray-500">this week</p>
+                            </div>
+                            <div class="kpi-card">
+                                <p class="text-gray-500 font-medium">Active Critical Cases</p>
+                                <p class="text-4xl font-bold text-[#E6A473]">2</p>
+                                <p class="text-gray-500">with support</p>
+                            </div>
+                            <div class="col-span-1 sm:col-span-2 chart-container">
+                                <canvas id="careChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="order-1 md:order-2">
+                        <h4 class="text-xl font-semibold mb-4 text-center">Conversation Simulation</h4>
+                        <div id="care-simulation" class="bg-gray-50 p-6 rounded-xl shadow-lg h-[450px] flex flex-col">
+                            <div class="space-y-4 overflow-y-auto flex-grow pr-2">
+                                <div id="care-q-container"></div>
+                            </div>
+                            <div class="mt-4 space-y-2">
+                                <button id="care-sim-btn-1" class="w-full btn-secondary font-medium py-2 px-4 rounded-lg">"I'm at my limit today."</button>
+                                <button id="care-sim-btn-2" class="w-full btn-secondary font-medium py-2 px-4 rounded-lg">"I didn't sleep, I can't think."</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="w-full bg-white"><div class="container mx-auto"><hr class="border-gray-200"></div></div>
+
+        <section id="rds" class="py-16 md:py-24">
+            <div class="container mx-auto px-6">
+                <div class="text-center mb-12">
+                    <h3 class="text-3xl md:text-4xl font-bold">Temporae RDS</h3>
+                    <p class="mt-3 text-lg max-w-2xl mx-auto text-gray-600">RDS (Simple Task Resolution) is the service that allows your employees to delegate those small tasks that steal focus and energy. From canceling a subscription to drafting an email, RDS handles it quickly and efficiently, freeing your team's mental load so they can focus on what really matters.</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h4 class="text-xl font-semibold mb-4 text-center">Delegation Simulation</h4>
+                        <div id="rds-simulation" class="bg-white p-6 rounded-xl shadow-lg h-[450px] flex flex-col">
+                            <div class="space-y-4 overflow-y-auto flex-grow pr-2">
+                                <div id="rds-q-container"></div>
+                            </div>
+                            <div class="mt-4 flex">
+                                <input type="text" id="rds-input" class="flex-grow border border-gray-300 rounded-l-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#E6A473]" placeholder="Delegate your task here...">
+                                <button id="rds-send-btn" class="btn-primary font-bold py-2 px-4 rounded-r-lg">Send</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-semibold mb-4 text-center">HR Dashboard: RDS</h4>
+                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="kpi-card">
+                                <p class="text-gray-500 font-medium">Delegated Tasks</p>
+                                <p class="text-4xl font-bold text-[#E6A473]">194</p>
+                                <p class="text-gray-500">this week</p>
+                            </div>
+                            <div class="kpi-card">
+                                <p class="text-gray-500 font-medium">Resolution Time</p>
+                                <p class="text-4xl font-bold text-[#E6A473]">6.5<span class="text-2xl">h</span></p>
+                                <p class="text-gray-500">average</p>
+                            </div>
+                            <div class="col-span-1 sm:col-span-2 chart-container">
+                                <canvas id="rdsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white text-center py-8 mt-16">
+        <p class="font-bold text-lg">Temporae</p>
+        <p class="text-gray-400">The most human way to care for your team.</p>
+    </footer>
+
+    <button id="scrollTopBtn" aria-label="Scroll to top" title="Scroll to top">↑</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const createBubble = (text, sender = 'bot', options = []) => {
+                const bubble = document.createElement('div');
+                bubble.className = `p-3 rounded-lg max-w-xs md:max-w-md chat-bubble ${sender === 'user' ? 'bg-blue-100 self-end' : 'bg-gray-200 self-start'}`;
+                bubble.innerHTML = `<p>${text}</p>`;
+
+                if (options.length > 0) {
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'mt-2 space-y-2';
+                    options.forEach(opt => {
+                        const button = document.createElement('button');
+                        button.className = 'w-full text-left bg-white p-2 rounded-md border border-gray-300 hover:bg-gray-100 text-sm';
+                        button.textContent = opt.text;
+                        button.onclick = opt.action;
+                        optionsContainer.appendChild(button);
+                    });
+                    bubble.appendChild(optionsContainer);
+                }
+                
+                requestAnimationFrame(() => {
+                    bubble.classList.add('visible');
+                });
+
+                return bubble;
+            };
+
+            const addBubbleWithDelay = (container, bubble, delay) => {
+                setTimeout(() => {
+                    container.appendChild(bubble);
+                    container.scrollTop = container.scrollHeight;
+                }, delay);
+            };
+
+            // Pulse+ Simulation
+            const pulseContainer = document.getElementById('pulse-q-container');
+            const startPulseSimBtn = document.getElementById('start-pulse-sim');
+            let pulseSimStarted = false;
+
+            startPulseSimBtn.addEventListener('click', () => {
+                if (pulseSimStarted) return;
+                pulseSimStarted = true;
+                startPulseSimBtn.disabled = true;
+                startPulseSimBtn.textContent = 'Simulation in progress...';
+                startPulseSimBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+                pulseContainer.innerHTML = '';
+
+                const q1 = createBubble('If your mood today were an emoji... which one would it be?');
+                addBubbleWithDelay(pulseContainer, q1, 500);
+
+                const ans1 = createBubble('Ana: 😊', 'user');
+                addBubbleWithDelay(pulseContainer, ans1, 1500);
+
+                const ans2 = createBubble('Diego: 🚀', 'user');
+                addBubbleWithDelay(pulseContainer, ans2, 2200);
+
+                const ans3 = createBubble('Marta: 😴', 'user');
+                addBubbleWithDelay(pulseContainer, ans3, 2800);
+
+                const ans4 = createBubble('Álvaro: 👍', 'user');
+                addBubbleWithDelay(pulseContainer, ans4, 3300);
+
+                setTimeout(() => {
+                    startPulseSimBtn.disabled = false;
+                    startPulseSimBtn.textContent = 'Restart simulation';
+                    startPulseSimBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    pulseSimStarted = false;
+                }, 4000);
+            });
+
+
+            // Care Simulation
+            const careContainer = document.getElementById('care-q-container');
+            const startCareSim = (userMessage) => {
+                document.getElementById('care-sim-btn-1').style.display = 'none';
+                document.getElementById('care-sim-btn-2').style.display = 'none';
+                careContainer.innerHTML = '';
+                
+                const userBubble = createBubble(userMessage, 'user');
+                addBubbleWithDelay(careContainer, userBubble, 100);
+
+                const responseOptions = [
+                    { text: 'Just a one-minute break', action: () => showCareResponse('break') },
+                    { text: 'I want to write without being judged', action: () => showCareResponse('write') },
+                    { text: 'Talk to someone (AI or person)', action: () => showCareResponse('talk') }
+                ];
+                const aiBubble = createBubble('Thank you for sharing. Would you like to let it out, have a 1:1 conversation, or take a guided break?', 'bot', responseOptions);
+                addBubbleWithDelay(careContainer, aiBubble, 1200);
+            };
+
+            const showCareResponse = (choice) => {
+                let responseText;
+                switch(choice) {
+                    case 'break':
+                        responseText = '[Guided 60-second break] Inhale. Exhale. You are doing the best you can. Your effort matters.';
+                        break;
+                    case 'write':
+                        responseText = 'What you feel makes sense. This is a safe space for you to express it. I am here to read without judgment.';
+                        break;
+                    case 'talk':
+                        responseText = 'Of course. Is it hard to focus today or do you feel there is something deeper? We can explore it together.';
+                        break;
+                }
+                const responseBubble = createBubble(responseText, 'bot');
+                addBubbleWithDelay(careContainer, responseBubble, 500);
+                setTimeout(resetCareSim, 5000);
+            }
+            
+            const resetCareSim = () => {
+                careContainer.innerHTML = '';
+                document.getElementById('care-sim-btn-1').style.display = 'block';
+                document.getElementById('care-sim-btn-2').style.display = 'block';
+            }
+
+            document.getElementById('care-sim-btn-1').addEventListener('click', () => startCareSim("I'm at my limit today."));
+            document.getElementById('care-sim-btn-2').addEventListener('click', () => startCareSim("I didn't sleep, I can't think."));
+
+            // RDS Simulation
+            const rdsContainer = document.getElementById('rds-q-container');
+            const rdsInput = document.getElementById('rds-input');
+            const rdsSendBtn = document.getElementById('rds-send-btn');
+            
+            const startRdsSim = () => {
+                const task = rdsInput.value || 'I have been wanting to cancel my SmartFit subscription for days.';
+                if(!task) return;
+
+                rdsInput.value = '';
+                rdsInput.disabled = true;
+                rdsSendBtn.disabled = true;
+
+                const q1 = createBubble('Is there anything stealing your focus today that we can take off your plate?', 'bot');
+                addBubbleWithDelay(rdsContainer, q1, 200);
+
+                const userBubble = createBubble(task, 'user');
+                addBubbleWithDelay(rdsContainer, userBubble, 1200);
+
+                const q2 = createBubble('We will handle it for you right now. Which email did you register with?', 'bot');
+                addBubbleWithDelay(rdsContainer, q2, 2200);
+
+                const ans2 = createBubble('juanperez@gmail.com', 'user');
+                addBubbleWithDelay(rdsContainer, ans2, 3200);
+                
+                const q3 = createBubble('Perfect. We have everything we need. We will confirm as soon as it is done.', 'bot');
+                addBubbleWithDelay(rdsContainer, q3, 4200);
+
+                const final = createBubble('Done! The subscription was canceled. Removed from your mental list. ✨', 'bot');
+                addBubbleWithDelay(rdsContainer, final, 6000);
+
+                setTimeout(() => {
+                    rdsInput.disabled = false;
+                    rdsSendBtn.disabled = false;
+                    rdsContainer.innerHTML = '';
+                }, 8000);
+            };
+
+            rdsSendBtn.addEventListener('click', startRdsSim);
+            rdsInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') startRdsSim();
+            });
+
+            // Charts
+            const initCharts = () => {
+                Chart.defaults.font.family = 'Inter';
+                Chart.defaults.color = '#6b7280';
+                
+                // Pulse Chart
+                const pulseCtx = document.getElementById('pulseChart').getContext('2d');
+                new Chart(pulseCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Interaction', 'No interaction'],
+                        datasets: [{
+                            label: 'Interaction Rate',
+                            data: [48, 52],
+                            backgroundColor: ['#E6A473', '#F3F4F6'],
+                            borderColor: '#FFFFFF',
+                            borderWidth: 4
+                        },{
+                            label: 'Positive Reactions',
+                            data: [92, 8],
+                            backgroundColor: ['#8A8D91', '#F3F4F6'],
+                            borderColor: '#FFFFFF',
+                            borderWidth: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            title: { display: true, text: 'Key Interaction Metrics' }
+                        },
+                        cutout: '60%'
+                    }
+                });
+
+                // Care Chart
+                const careCtx = document.getElementById('careChart').getContext('2d');
+                new Chart(careCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Total Interactions', 'Breaks Used', 'Referrals Suggested'],
+                        datasets: [{
+                            label: 'Weekly Activity',
+                            data: [74, 33, 7],
+                            backgroundColor: ['#E6A473', '#B9BDBF', '#8A8D91'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: 'Care Support Activity' }
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+
+                // RDS Chart
+                const rdsCtx = document.getElementById('rdsChart').getContext('2d');
+                new Chart(rdsCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Personal Tasks', 'Work Tasks'],
+                        datasets: [{
+                            label: 'Task Distribution',
+                            data: [68, 32],
+                            backgroundColor: ['#E6A473', '#8A8D91'],
+                            borderColor: '#FFFFFF',
+                            borderWidth: 4,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            title: { display: true, text: '% Personal vs. Work Tasks' }
+                        }
+                    }
+                });
+            };
+            
+            // Navigation Observer
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if(link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                                link.setAttribute('aria-current', 'section');
+                            } else {
+                                link.removeAttribute('aria-current');
+                            }
+                        });
+                    }
+                });
+            }, { rootMargin: '-50% 0px -50% 0px' });
+
+            sections.forEach(section => {
+                 if(section.id) observer.observe(section);
+            });
+
+            // Scroll to top button
+            const scrollTopBtn = document.getElementById('scrollTopBtn');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    scrollTopBtn.style.display = 'block';
+                } else {
+                    scrollTopBtn.style.display = 'none';
+                }
+            });
+            scrollTopBtn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            initCharts();
+        });
+    </script>
+</body>
+</html>
